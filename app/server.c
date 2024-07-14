@@ -50,7 +50,15 @@ int main() {
   printf("Waiting for a client to connect...\n");
   client_addr_len = sizeof(client_addr);
 
-  accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+  int client_fd =
+      accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+  if (!client_fd) {
+    printf("Error creating the client socket: %s...\n", strerror(errno));
+    return 1;
+  }
+
+  char *message = "HTTP/1.1 200 OK\r\n\r\n";
+  send(client_fd, message, strlen(message), 0);
   printf("Client connected\n");
 
   close(server_fd);
