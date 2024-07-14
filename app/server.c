@@ -5,7 +5,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
+
+#define BUFFER_SIZE 100
+
+struct request_in {
+  char *method;
+  char *path;
+  char *version;
+};
+
+ssize_t request_line(struct request_in *request_in, char *request_header,
+                     ssize_t len);
 
 int main() {
   // Disable output buffering
@@ -57,11 +69,50 @@ int main() {
     return 1;
   }
 
-  char *message = "HTTP/1.1 200 OK\r\n\r\n";
-  send(client_fd, message, strlen(message), 0);
+  char *req_header = (char *)malloc(BUFFER_SIZE * sizeof(char));
+  read(client_fd, req_header, BUFFER_SIZE);
+
+  struct request_in *request;
+  request = (struct request_in *)malloc(sizeof(struct request_in));
+
+  request_line(request, req_header, strlen(req_header));
+
+  char *message;
+  printf("%s/n", request->path);
+  if (strcmp(request->path, "/") == 0) {
+    message = "HTTP/1.1 200 OK\r\n\r\n";
+  } else {
+    message = "HTTP/1.1 404 Not Found\r\n\r\n";
+  }
+
+  int send_ret = send(client_fd, message, strlen(message), 0);
+  if (!send_ret) {
+    printf("Error sending the response: %s...\n", strerror(errno));
+    return 1;
+  }
   printf("Client connected\n");
 
   close(server_fd);
+
+  return 0;
+}
+
+ssize_t request_line(struct request_in *request, char *request_header,
+                     ssize_t len) {
+  const char spc[1] = " ";
+  char *token;
+
+  token = strtok(request_header, spc);
+  request->method = (char *)malloc(strlen(token) * sizeof(char));
+  strcpy(request->method, token);
+
+  token = strtok(NULL, spc);
+  request->path = (char *)malloc(strlen(token) * sizeof(char));
+  strcpy(request->path, token);
+
+  token = strtok(NULL, spc);
+  request->version = (char *)malloc(strlen(token) * sizeof(char));
+  strcpy(request->version, token);
 
   return 0;
 }
